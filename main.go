@@ -30,17 +30,18 @@ type Secrets struct {
 
 func main() {
 
-	files := readCurrentDir()
-	total_files := len(files)
-	fmt.Println(total_files)
+	m := readCurrentDir()
+	//**files := readCurrentDir()
+	//total_files := len(files)
+	//fmt.Println(total_files)
 	csvFile, err := os.Create("output.csv")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for i, file := range files {
-		fmt.Println("Total Files to Process: ", total_files-i)
-		fmt.Println("Processing File Number :", i)
+	for file, org := range m {
+		//fmt.Println("Total Files to Process: ", total_files-i)
+		//fmt.Println("Processing File Number :", i)
 		jsonData, err := ioutil.ReadFile(file)
 		if err != nil {
 			fmt.Println(err)
@@ -67,7 +68,8 @@ func main() {
 			row = append(row, items.Rule)
 			row = append(row, items.Offender)
 			row = append(row, items.Date)
-			row = append(row, ("https://github.com/freshdesk/" + items.Repo + "/blob/" + items.Commit + "/" + items.File))
+			row = append(row, items.Commit)
+			row = append(row, ("https://github.com/" + org + "/" + items.Repo + "/blob/" + items.Commit + "/" + items.File))
 			writer.Write(row)
 		}
 		writer.Flush()
@@ -76,21 +78,21 @@ func main() {
 
 }
 
-func readCurrentDir() []string {
+func readCurrentDir() map[string]string {
 
 	file, err := os.Open(".")
 	if err != nil {
 		log.Fatalf("Failed Opening Directory: %s", err)
 	}
 	defer file.Close()
-	var fileNames []string
 	fileList, _ := file.Readdir(0)
-
+	repoOrg := make(map[string]string)
 	for _, files := range fileList {
 		if !(files.IsDir()) && (strings.HasSuffix(files.Name(), "json")) {
-			fileNames = append(fileNames, files.Name())
+			org := strings.Split(files.Name(), "__")[0]
+			repoOrg[files.Name()] = org
 		}
 	}
-	return fileNames
+	return repoOrg
 
 }
