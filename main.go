@@ -5,75 +5,92 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
+	"strings"
 )
 
 type Secrets struct {
-	Line          string `json:"line"`
-	LineNumber    string `json:"lineNumber"`
-	Offender      string `json:"offender"`
-	Commit        string `json:"commit"`
-	Repo          string `json:"repo"`
-	RepoURL       string `json:"repoURL"`
-	LeakURL       string `json:"leakURL"`
-	Rule          string `json:"rule"`
-	CommitMessage string `json:"commitMessage"`
-	Author        string `json:"author"`
-	Email         string `json:"email"`
-	File          string `json:"file"`
-	Date          string `json:"date"`
-	Tags          string `json:"tags"`
-	FullURL       string `json:"full_url"`
+	Line          string      `json:"line"`
+	LineNumber    json.Number `json:"lineNumber"`
+	Offender      string      `json:"offender"`
+	Commit        string      `json:"commit"`
+	Repo          string      `json:"repo"`
+	RepoURL       string      `json:"repoURL"`
+	LeakURL       string      `json:"leakURL"`
+	Rule          string      `json:"rule"`
+	CommitMessage string      `json:"commitMessage"`
+	Author        string      `json:"author"`
+	Email         string      `json:"email"`
+	File          string      `json:"file"`
+	Date          string      `json:"date"`
+	Tags          string      `json:"tags"`
+	FullURL       string      `json:"full_url"`
 }
 
 func main() {
 
-	var fileName string
-	var csvFileName string
-
-	fileName = os.Args[1]
-	csvFileName = os.Args[2]
-
-	jsonData, err := ioutil.ReadFile(fileName)
+	files := readCurrentDir()
+	total_files := len(files)
+	fmt.Println(total_files)
+	csvFile, err := os.Create("output.csv")
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 	}
 
-	var jdata []Secrets
-	err = json.Unmarshal([]byte(jsonData), &jdata)
+	for i, file := range files {
+		fmt.Println("Total Files to Process: ", total_files-i)
+		fmt.Println("Processing File Number :", i)
+		jsonData, err := ioutil.ReadFile(file)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		var jdata []Secrets
+		err = json.Unmarshal([]byte(jsonData), &jdata)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		if err != nil {
+			fmt.Println(err)
+		}
+		defer csvFile.Close()
+
+		writer := csv.NewWriter(csvFile)
+
+		writer.Write([]string{"RepoName", "RULE", "OFFENDER", "Date", "URL"})
+
+		for _, items := range jdata {
+			var row []string
+			row = append(row, items.Repo)
+			row = append(row, items.Rule)
+			row = append(row, items.Offender)
+			row = append(row, items.Date)
+			row = append(row, ("https://github.com/freshdesk/" + items.Repo + "/blob/" + items.Commit + "/" + items.File))
+			writer.Write(row)
+		}
+		writer.Flush()
+
+	}
+
+}
+
+func readCurrentDir() []string {
+
+	file, err := os.Open(".")
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Failed Opening Directory: %s", err)
 	}
+	defer file.Close()
+	var fileNames []string
+	fileList, _ := file.Readdir(0)
 
-	csvFile, err := os.Create(csvFileName)
-
-	if err != nil {
-		fmt.Println(err)
+	for _, files := range fileList {
+		if !(files.IsDir()) && (strings.HasSuffix(files.Name(), "json")) {
+			fileNames = append(fileNames, files.Name())
+		}
 	}
-	defer csvFile.Close()
-
-	writer := csv.NewWriter(csvFile)
-
-	for _, usance := range jdata {
-		var row []string
-		row = append(row, usance.Line)
-		row = append(row, usance.LineNumber)
-		row = append(row, usance.Offender)
-		row = append(row, usance.Commit)
-		row = append(row, usance.Repo)
-		row = append(row, usance.RepoURL)
-		row = append(row, usance.LeakURL)
-		row = append(row, usance.Rule)
-		row = append(row, usance.CommitMessage)
-		row = append(row, usance.Author)
-		row = append(row, usance.Email)
-		row = append(row, usance.File)
-		row = append(row, usance.Date)
-		row = append(row, usance.Tags)
-		row = append(row, usance.FullURL)
-		writer.Write(row)
-	}
-
-	writer.Flush()
+	return fileNames
 
 }
